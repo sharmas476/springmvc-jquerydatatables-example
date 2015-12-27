@@ -20,7 +20,7 @@ To get the code:
 -------------------
 Clone the repository:
 
-    $ git clone git://github.com/SpringSource/spring-mvc-showcase.git
+    $ git clone git://github.com/rakurakupg/springmvc-jquerydatatables-example.git
 
 
 To run the application:
