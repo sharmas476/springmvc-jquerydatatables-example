@@ -1,0 +1,8 @@
+{"time": $dt.time,
+"start": $dt.start,
+"length": $dt.length,
+"order": [#foreach( $o in $dt.orders)[$o.index,"$o.direction"]#if($velocityCount != $dt.orders.size()),#end#end],
+"search": {"search": "$dt.search.search", "smart": $dt.search.smart, "caseInsensitive": $dt.search.caseInsensitive},
+"columns": [#foreach($s in $dt.searches)
+{"visible": $s.visible, "search": {"search": "$s.search.search", "smart": $s.search.smart, "regex": $s.search.regex, "caseInsensitive": $s.search.caseInsensitive}}#if($velocityCount != $dt.searches.size()),#end#end
+]#if(!$dt.colReorder.isEmpty()),"ColReorder":[#foreach($cr in $dt.colReorder)$cr#if($velocityCount != $dt.colReorder.size()),#end#end]#end}

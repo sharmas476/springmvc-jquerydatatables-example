@@ -1,0 +1,23 @@
+{
+    "emptyTable":     "$emptyTable",
+    "info":           "$info",
+    "infoEmpty":      "$infoEmpty",
+    "infoFiltered":   "$infoFiltered",
+    "infoPostFix":    "$infoPostFix",
+    "infoThousands":  "$infoThousands",
+    "lengthMenu":     "$lengthMenu",
+    "loadingRecords": "$loadingRecords",
+    "processing":     "$processing",
+    "search":         "$search:",
+    "zeroRecords":    "$zeroRecords",
+    "paginate": {
+        "first":    "$first",
+        "last":     "$last",
+        "next":     "$next",
+        "previous": "$previous"
+    },
+    "aria": {
+        "sortAscending":  "$sortAscending",
+        "sortDescending": "$sortDescending"
+    }
+}
