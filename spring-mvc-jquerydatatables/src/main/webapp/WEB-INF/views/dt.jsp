@@ -316,6 +316,9 @@ tfoot.datatables-filters {
                         url : loadUrl,
                         async : false,
                         success : function(data) {
+                            if(!data){
+                                return;
+                            }
                             state = data;
                             $.each(settings.aoColumns, function(i, col) {
                                 var $filter = $($tid + ' .search-filter[data-col="' + col.data + '"]');
