@@ -1,4 +1,4 @@
-Spring MVC Jquery Datatables Example
+Spring MVC JQuery Datatables Example
 -------------------
 Sample Project of Spring Web MVC and JQuery Datatables this sample follows
 
