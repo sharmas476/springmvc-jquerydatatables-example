@@ -49,174 +49,178 @@ import sample.dt.webcomponents.state.DtStateParam;
 @RequestMapping(value = "/dt")
 public class DtController {
 
-	@Autowired
-	VelocityEngine velocityEngine;
+    @Autowired
+    VelocityEngine velocityEngine;
 
-	@Autowired
-	DtStateRepository dtStateRepository;
+    @Autowired
+    DtStateRepository dtStateRepository;
 
-	@Autowired
-	CompanyUserRepository companyUserRepository;
+    @Autowired
+    CompanyUserRepository companyUserRepository;
 
-	@Autowired
-	MessageSource messageSource;
+    @Autowired
+    MessageSource messageSource;
 
-	@Autowired
-	QueryDslExpressionHelper queryDslExpressionHelper;
+    @Autowired
+    QueryDslExpressionHelper queryDslExpressionHelper;
 
-	@Value("#{'${dt.lang.key}'.split(',')}")
-	List<String> lngKeys;
+    @Value("#{'${dt.lang.key}'.split(',')}")
+    List<String> lngKeys;
 
-	@Value("#{'${lang.key}'.split(',')}")
-	List<String> langs;
+    @Value("#{'${lang.key}'.split(',')}")
+    List<String> langs;
 
-	@Value("#{'${dateformat.key}'.split(',')}")
-	List<String> dateFormats;
+    @Value("#{'${dateformat.key}'.split(',')}")
+    List<String> dateFormats;
 
-	@RequestMapping(method = RequestMethod.GET)
-	public String index(Model model, Locale locale) {
+    ObjectMapper mapper = new ObjectMapper();
 
-		List<String> roles = companyUserRepository.findDistinctUserRole();
-		List<String> cities = companyUserRepository.findDistinctUserCity();
-		Pair<Integer, Integer> minmaxAge = companyUserRepository.findMinMaxAge();
+    @RequestMapping(method = RequestMethod.GET)
+    public String index(Model model, Locale locale) {
 
-		List<String[]> langvls = langs.stream().map(l -> {
-			return new String[] { l, messageSource.getMessage("lang.key." + l, new Object[0], l, locale) };
-		}).collect(Collectors.toList());
+        List<String> roles = companyUserRepository.findDistinctUserRole();
+        List<String> cities = companyUserRepository.findDistinctUserCity();
+        Pair<Integer, Integer> minmaxAge = companyUserRepository.findMinMaxAge();
 
-		model.addAttribute("roles", roles);
-		model.addAttribute("cities", cities);
-		model.addAttribute("dateFormats", dateFormats);
-		model.addAttribute("langs", langvls);
-		model.addAttribute("minage", minmaxAge.getLeft());
-		model.addAttribute("maxage", minmaxAge.getRight());
+        List<String[]> langvls = langs.stream().map(l -> {
+            return new String[]{l, messageSource.getMessage("lang.key." + l, new Object[0], l, locale)};
+        }).collect(Collectors.toList());
 
-		return "dt";
-	}
+        model.addAttribute("roles", roles);
+        model.addAttribute("cities", cities);
+        model.addAttribute("dateFormats", dateFormats);
+        model.addAttribute("langs", langvls);
+        model.addAttribute("minage", minmaxAge.getLeft());
+        model.addAttribute("maxage", minmaxAge.getRight());
 
-	@RequestMapping(value = "/lang", produces = "application/json; charset=utf-8", method = RequestMethod.GET)
-	public @ResponseBody String datatablesLanguage(Locale locale) {
-		final Object[] param = new Object[0];
-		Map<String, Object> langs = lngKeys.stream().collect(Collectors.toMap(e -> e, e -> messageSource.getMessage("dt.lang." + e, param, locale)));
-		final String str = VelocityEngineUtils.mergeTemplateIntoString(velocityEngine, "vm/dtlang.vm", "UTF-8", langs);
-		return str;
-	}
+        return "dt";
+    }
 
-	@RequestMapping(value = "/stateSave/{tableId}", produces = "application/json; charset=utf-8", method = RequestMethod.POST)
-	public @ResponseBody String stateSave(@PathVariable String tableId, DtStateParam state) throws IOException {
+    @RequestMapping(value = "/lang", produces = "application/json; charset=utf-8", method = RequestMethod.GET)
+    public
+    @ResponseBody
+    String datatablesLanguage(Locale locale) {
+        final Object[] param = new Object[0];
+        Map<String, Object> langs = lngKeys.stream().collect(Collectors.toMap(e -> e, e -> messageSource.getMessage("dt.lang." + e, param, locale)));
+        final String str = VelocityEngineUtils.mergeTemplateIntoString(velocityEngine, "vm/dtlang.vm", "UTF-8", langs);
+        return str;
+    }
 
-		Map<String, Object> map = new HashMap<>();
-		map.put("dt", state);
+    @RequestMapping(value = "/stateSave/{tableId}", produces = "application/json; charset=utf-8", method = RequestMethod.POST)
+    public
+    @ResponseBody
+    String stateSave(@PathVariable String tableId, DtStateParam state) throws IOException {
 
-		// to json string using velocity
-		final String str = VelocityEngineUtils.mergeTemplateIntoString(velocityEngine, "vm/dtstate.vm", "UTF-8", map);
+        Map<String, Object> map = new HashMap<>();
+        map.put("dt", state);
 
-		DtState data = dtStateRepository.findByTableId(tableId);
-		if (data == null) {
-			data = new DtState();
-			data.setTableId(tableId);
-		}
+        // to json string using velocity
+        final String str = VelocityEngineUtils.mergeTemplateIntoString(velocityEngine, "vm/dtstate.vm", "UTF-8", map);
 
-		data.setTableSettings(str.getBytes(Charset.forName("UTF-8")));
-		dtStateRepository.save(data);
+        DtState data = dtStateRepository.findByTableId(tableId);
+        if (data == null) {
+            data = new DtState();
+            data.setTableId(tableId);
+        }
 
-		return null;
-	}
+        data.setTableSettings(str.getBytes(Charset.forName("UTF-8")));
+        dtStateRepository.save(data);
 
-	@RequestMapping(value = "/stateLoad/{tableId}", produces = "application/json; charset=utf-8", method = RequestMethod.GET)
-	public @ResponseBody String stateLoad(@PathVariable String tableId, HttpServletRequest request) {
-		DtState data = dtStateRepository.findByTableId(tableId);
-		if (data == null) {
-			return null;
-		}
-		return new String(data.getTableSettings(), Charset.forName("UTF-8"));
-	}
+        return null;
+    }
 
-	@RequestMapping(value = "/tbody", produces = "application/json; charset=utf-8", method = RequestMethod.POST)
-	public @ResponseBody DtResponse<CompanyUser> body(DtPageable pageable) {
-		Predicate predicate = queryDslExpressionHelper.express(new BooleanExpressionTemplate() {
-			@Override
-			// public BooleanExpression
-			// cretePredicate(Optional<BooleanExpression> lastPredicate,
-			// DtSearchColumn column, Map<String, DtSearchColumn>
-			// allSearchColumns) {
-			public BooleanExpression cretePredicate(BooleanExpression lastPredicate, DtSearchColumn column, Map<String, DtSearchColumn> allSearchColumns) {
-				final String colName = column.getName();
-				BooleanExpression be = null;
-				ObjectMapper mapper = null;
-				JsonNode node = null;
-				String encoded = null;
-				String decorded = null;
-				switch (colName) {
-				case "uname":
-					be = QCompanyUser.companyUser.uname.upper().like("%" + column.getCondition().getValue().toUpperCase() + "%");
-					break;
-				case "urole":
-					be = QCompanyUser.companyUser.urole.eq(column.getCondition().getValue());
-					break;
-				case "city":
-					be = QCompanyUser.companyUser.city.eq(column.getCondition().getValue());
-					break;
-				case "hdate":
-					mapper = new ObjectMapper();
-					try {
-						encoded = column.getCondition().getValue();
-						decorded = URLDecoder.decode(encoded, "UTF-8");
-						node = mapper.readTree(decorded);
-						String from = node.findPath("from").asText();
-						String to = node.findPath("to").asText();
-						String format = node.findPath("dateFormat").asText();
-						Date fdate = asDate(from, format);
-						Date tdate = asDate(to, format);
+    @RequestMapping(value = "/stateLoad/{tableId}", produces = "application/json; charset=utf-8", method = RequestMethod.GET)
+    public
+    @ResponseBody
+    String stateLoad(@PathVariable String tableId, HttpServletRequest request) {
+        DtState data = dtStateRepository.findByTableId(tableId);
+        if (data == null) {
+            return null;
+        }
+        return new String(data.getTableSettings(), Charset.forName("UTF-8"));
+    }
 
-						if (fdate != null) {
-							be = QCompanyUser.companyUser.hdate.goe(fdate);
-						}
-						if (tdate != null) {
-							if (be != null) {
-								be = be.and(QCompanyUser.companyUser.hdate.loe(tdate));
-							} else {
-								be = QCompanyUser.companyUser.hdate.loe(tdate);
-							}
-						}
+    @RequestMapping(value = "/tbody", produces = "application/json; charset=utf-8", method = RequestMethod.POST)
+    public
+    @ResponseBody
+    DtResponse<CompanyUser> body(DtPageable pageable) {
+        Predicate predicate = queryDslExpressionHelper.express(new BooleanExpressionTemplate() {
+            @Override
+            public BooleanExpression cretePredicate(BooleanExpression lastPredicate, DtSearchColumn column, Map<String, DtSearchColumn> allSearchColumns) {
+                final String colName = column.getName();
+                BooleanExpression be = null;
+                JsonNode node = null;
+                String encoded = null;
+                String decorded = null;
+                switch (colName) {
+                    case "uname":
+                        be = QCompanyUser.companyUser.uname.upper().like("%" + column.getCondition().getValue().toUpperCase() + "%");
+                        break;
+                    case "urole":
+                        be = QCompanyUser.companyUser.urole.eq(column.getCondition().getValue());
+                        break;
+                    case "city":
+                        be = QCompanyUser.companyUser.city.eq(column.getCondition().getValue());
+                        break;
+                    case "hdate":
+                        try {
+                            // url encode for save to database
+                            encoded = column.getCondition().getValue();
+                            decorded = URLDecoder.decode(encoded, "UTF-8");
+                            node = mapper.readTree(decorded);
+                            String from = node.findPath("from").asText();
+                            String to = node.findPath("to").asText();
+                            String format = node.findPath("dateFormat").asText();
+                            Date fdate = asDate(from, format);
+                            Date tdate = asDate(to, format);
 
-					} catch (IOException e) {
-						throw new RuntimeException(e);
-					}
-					break;
-				case "age":
-					mapper = new ObjectMapper();
-					try {
-						encoded = column.getCondition().getValue();
-						decorded = URLDecoder.decode(encoded, "UTF-8");
-						node = mapper.readTree(decorded);
-						Integer min = node.findPath("min").asInt();
-						Integer max = node.findPath("max").asInt();
-						be = QCompanyUser.companyUser.age.goe(min).and(QCompanyUser.companyUser.age.loe(max));
-					} catch (IOException e) {
-						throw new RuntimeException(e);
-					}
-					break;
-				default:
-					return lastPredicate;
-				}
-				return lastPredicate == null ? be : lastPredicate.and(be);
-			}
-		}, pageable);
+                            if (fdate != null) {
+                                be = QCompanyUser.companyUser.hdate.goe(fdate);
+                            }
+                            if (tdate != null) {
+                                if (be != null) {
+                                    be = be.and(QCompanyUser.companyUser.hdate.loe(tdate));
+                                } else {
+                                    be = QCompanyUser.companyUser.hdate.loe(tdate);
+                                }
+                            }
 
-		Page<CompanyUser> users = companyUserRepository.findAll(predicate, pageable);
-		return DtResponse.of(users, pageable);
-	}
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                        break;
+                    case "age":
+                        try {
+                            encoded = column.getCondition().getValue();
+                            decorded = URLDecoder.decode(encoded, "UTF-8");
+                            node = mapper.readTree(decorded);
+                            Integer min = node.findPath("min").asInt();
+                            Integer max = node.findPath("max").asInt();
+                            be = QCompanyUser.companyUser.age.goe(min).and(QCompanyUser.companyUser.age.loe(max));
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                        break;
+                    default:
+                        return lastPredicate;
+                }
+                return lastPredicate == null ? be : lastPredicate.and(be);
+            }
+        }, pageable);
 
-	protected Date asDate(String sdate, String format) {
-		if (sdate.length() != 10) {
-			return null;
-		}
-		try {
-			return new Date(new SimpleDateFormat(format.replace("mm", "MM")).parse(sdate).getTime());
-		} catch (ParseException e) {
-			throw new RuntimeException(e);
-		}
-	}
+        Page<CompanyUser> users = companyUserRepository.findAll(predicate, pageable);
+        return DtResponse.of(users, pageable);
+    }
+
+    protected Date asDate(String sdate, String format) {
+        if (sdate.length() != 10) {
+            return null;
+        }
+        try {
+            return new Date(new SimpleDateFormat(format.replace("mm", "MM")).parse(sdate).getTime());
+        } catch (ParseException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
 }
